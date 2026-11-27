@@ -100,13 +100,16 @@ def gcloud(args: str, timeout: int = 120) -> str:
     return wsl(f"gcloud {args} --project {PROJECT} 2>&1", timeout=timeout)
 
 
+PY = "~/venvs/p7/bin/python"
+
+
 def run_state(name: str) -> str:
-    return gcloud(f"ai pipeline-jobs describe {name} --region {REGION} --format='value(state)'")
+    """First line of runstate.py: '<run>: SUCCEEDED|FAILED|RUNNING'. No gcloud group exists for pipeline jobs."""
+    return wsl(f"{PY} pipeline/runstate.py {name} 2>&1 | head -1")
 
 
 def task_details(name: str) -> str:
-    """One line per pipeline task: name, state, duration."""
-    return gcloud(f"ai pipeline-jobs describe {name} --region {REGION} --format='table[no-heading](jobDetail.taskDetails[].taskName,jobDetail.taskDetails[].state)' ")
+    return wsl(f"{PY} pipeline/runstate.py {name} 2>&1")
 
 
 NARRATION = {
@@ -259,8 +262,7 @@ async def main() -> None:
     # ---- 4 the release from the command line ----
     steps4 = await precapture([
         (f"./deploy.sh release demo{stamp}-rel --no-promote", trim(runs["rel"]["log"], 600)),
-        (f"gcloud ai pipeline-jobs describe {rel} --format='table(jobDetail.taskDetails[].taskName,jobDetail.taskDetails[].state)'",
-         lambda: gcloud(f"ai pipeline-jobs describe {rel} --region {REGION} --format='table(jobDetail.taskDetails[].taskName,jobDetail.taskDetails[].state)'")),
+        (f"python pipeline/runstate.py {rel}", lambda: task_details(rel)),
         ("gsutil cat gs://$BUCKET/champion.json", lambda: wsl(f"gcloud storage cat gs://{o['bucket']}/champion.json 2>&1")),
         ("gcloud ai endpoints describe fraud-endpoint --format='value(trafficSplit)'   # challenger at 10% beside the champion",
          lambda: gcloud(f"ai endpoints describe fraud-endpoint --region {REGION} --format='yaml(deployedModels[].displayName,trafficSplit)'")),
@@ -295,9 +297,7 @@ async def main() -> None:
     print(f"  bad run {bad}: {st}")
     steps6 = await precapture([
         (f"./deploy.sh bad demo{stamp}-bad", trim(runs["bad"]["log"], 500)),
-        (f"gcloud ai pipeline-jobs describe {bad} --format='table(jobDetail.taskDetails[].taskName,jobDetail.taskDetails[].state)'",
-         lambda: gcloud(f"ai pipeline-jobs describe {bad} --region {REGION} --format='table(jobDetail.taskDetails[].taskName,jobDetail.taskDetails[].state)'")),
-        (f"gcloud ai pipeline-jobs describe {bad} --format='value(error.message)' | fold -w 150", lambda: gcloud(f"ai pipeline-jobs describe {bad} --region {REGION} --format='value(error.message)' | fold -s -w 150 | head -12")),
+        (f"python pipeline/runstate.py {bad}   # the gate's reason is the run's error", lambda: task_details(bad)),
         ("gcloud ai models list --filter=displayName=fraud-detector --format='table(versionId,versionAliases.list(),labels.auc_pr)'   # no new version",
          lambda: gcloud(f"ai models list --region {REGION} --filter='displayName=fraud-detector' --format='table(versionId,versionAliases.list(),labels.auc_pr,createTime.date())'")),
     ])

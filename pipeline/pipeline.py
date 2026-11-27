@@ -8,13 +8,16 @@ to the champion, a smoke test runs against the endpoint, and only then is traffi
 undeployed. `sabotage=True` trains a deliberately bad model (shuffled labels, strongest features dropped) so the
 gate can be watched failing.
 
-Every component is a lightweight Python component on python:3.11-slim; scikit-learn is pinned to the version of
-the prebuilt Vertex prediction container that serves the model.
+Every component is a lightweight Python component; train/evaluate run on python:3.10 with numpy 1.26 and
+scikit-learn 1.5.2, the same generation as the prebuilt Vertex prediction container that serves the model, so the
+pickle loads there.
 """
 from kfp import dsl
 from kfp.dsl import Dataset, Input, Metrics, Model, Output
 
 SKLEARN = "scikit-learn==1.5.2"
+NUMPY = "numpy==1.26.4"  # the prebuilt sklearn-cpu.1-5 container runs Python 3.10 + numpy 1.x; a numpy-2 pickle (numpy._core) will not load there
+TRAIN_IMAGE = "python:3.10-slim"
 SERVING_IMAGE = "us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-5:latest"
 FEATURES = [f"V{i}" for i in range(1, 29)] + ["Amount"]
 
@@ -44,7 +47,7 @@ def extract(project: str, sample_rows: int, train: Output[Dataset], eval: Output
     return {"train_rows": int(len(tr)), "eval_rows": int(len(ev)), "train_frauds": int(tr["Class"].sum()), "eval_frauds": int(ev["Class"].sum())}
 
 
-@dsl.component(base_image="python:3.11-slim", packages_to_install=[SKLEARN, "pandas==2.2.3", "pyarrow==18.1.0", "joblib==1.4.2"])
+@dsl.component(base_image=TRAIN_IMAGE, packages_to_install=[NUMPY, SKLEARN, "pandas==2.2.3", "pyarrow==18.1.0", "joblib==1.4.2"])
 def train(train: Input[Dataset], sabotage: bool, model: Output[Model]) -> dict:
     """HistGradientBoosting on the fraud label, used as a scorer (predict -> fraud score in [0,1]) so the prebuilt
     sklearn container's predict() returns a probability-like score instead of a hard class."""
@@ -77,7 +80,7 @@ def train(train: Input[Dataset], sabotage: bool, model: Output[Model]) -> dict:
     return {"note": note, "train_seconds": round(time.time() - t0, 1), "rows": int(len(y))}
 
 
-@dsl.component(base_image="python:3.11-slim", packages_to_install=[SKLEARN, "pandas==2.2.3", "pyarrow==18.1.0", "joblib==1.4.2"])
+@dsl.component(base_image=TRAIN_IMAGE, packages_to_install=[NUMPY, SKLEARN, "pandas==2.2.3", "pyarrow==18.1.0", "joblib==1.4.2"])
 def evaluate(model: Input[Model], eval: Input[Dataset], metrics: Output[Metrics], baseline: Output[Dataset]) -> dict:
     """AUC-PR / ROC-AUC / recall at 90% precision on the held-out split, plus the feature baseline (quantile bins)
     that the drift job compares live traffic against."""
