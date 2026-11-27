@@ -1,0 +1,661 @@
+{
+  "components": {
+    "comp-canary-deploy-and-promote": {
+      "executorLabel": "exec-canary-deploy-and-promote",
+      "inputDefinitions": {
+        "artifacts": {
+          "baseline": {
+            "artifactType": {
+              "schemaTitle": "system.Dataset",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "auto_promote": {
+            "parameterType": "BOOLEAN"
+          },
+          "bucket": {
+            "parameterType": "STRING"
+          },
+          "canary_percent": {
+            "parameterType": "NUMBER_INTEGER"
+          },
+          "endpoint_display_name": {
+            "parameterType": "STRING"
+          },
+          "machine_type": {
+            "parameterType": "STRING"
+          },
+          "metrics_in": {
+            "parameterType": "STRUCT"
+          },
+          "project": {
+            "parameterType": "STRING"
+          },
+          "region": {
+            "parameterType": "STRING"
+          },
+          "registered": {
+            "parameterType": "STRUCT"
+          },
+          "smoke_requests": {
+            "parameterType": "NUMBER_INTEGER"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRUCT"
+          }
+        }
+      }
+    },
+    "comp-evaluate": {
+      "executorLabel": "exec-evaluate",
+      "inputDefinitions": {
+        "artifacts": {
+          "eval": {
+            "artifactType": {
+              "schemaTitle": "system.Dataset",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "model": {
+            "artifactType": {
+              "schemaTitle": "system.Model",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "baseline": {
+            "artifactType": {
+              "schemaTitle": "system.Dataset",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "metrics": {
+            "artifactType": {
+              "schemaTitle": "system.Metrics",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "Output": {
+            "parameterType": "STRUCT"
+          }
+        }
+      }
+    },
+    "comp-extract": {
+      "executorLabel": "exec-extract",
+      "inputDefinitions": {
+        "parameters": {
+          "project": {
+            "parameterType": "STRING"
+          },
+          "sample_rows": {
+            "parameterType": "NUMBER_INTEGER"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "eval": {
+            "artifactType": {
+              "schemaTitle": "system.Dataset",
+              "schemaVersion": "0.0.1"
+            }
+          },
+          "train": {
+            "artifactType": {
+              "schemaTitle": "system.Dataset",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "Output": {
+            "parameterType": "STRUCT"
+          }
+        }
+      }
+    },
+    "comp-gate": {
+      "executorLabel": "exec-gate",
+      "inputDefinitions": {
+        "parameters": {
+          "bucket": {
+            "parameterType": "STRING"
+          },
+          "floor_auc_pr": {
+            "parameterType": "NUMBER_DOUBLE"
+          },
+          "max_regression": {
+            "parameterType": "NUMBER_DOUBLE"
+          },
+          "metrics_in": {
+            "parameterType": "STRUCT"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRUCT"
+          }
+        }
+      }
+    },
+    "comp-register": {
+      "executorLabel": "exec-register",
+      "inputDefinitions": {
+        "artifacts": {
+          "model": {
+            "artifactType": {
+              "schemaTitle": "system.Model",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "metrics_in": {
+            "parameterType": "STRUCT"
+          },
+          "model_display_name": {
+            "parameterType": "STRING"
+          },
+          "project": {
+            "parameterType": "STRING"
+          },
+          "region": {
+            "parameterType": "STRING"
+          },
+          "run_tag": {
+            "parameterType": "STRING"
+          },
+          "serving_image": {
+            "parameterType": "STRING"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "parameters": {
+          "Output": {
+            "parameterType": "STRUCT"
+          }
+        }
+      }
+    },
+    "comp-train": {
+      "executorLabel": "exec-train",
+      "inputDefinitions": {
+        "artifacts": {
+          "train": {
+            "artifactType": {
+              "schemaTitle": "system.Dataset",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "sabotage": {
+            "parameterType": "BOOLEAN"
+          }
+        }
+      },
+      "outputDefinitions": {
+        "artifacts": {
+          "model": {
+            "artifactType": {
+              "schemaTitle": "system.Model",
+              "schemaVersion": "0.0.1"
+            }
+          }
+        },
+        "parameters": {
+          "Output": {
+            "parameterType": "STRUCT"
+          }
+        }
+      }
+    }
+  },
+  "deploymentSpec": {
+    "executors": {
+      "exec-canary-deploy-and-promote": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "canary_deploy_and_promote"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'google-cloud-aiplatform==1.75.0' 'google-cloud-storage==2.19.0'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.18.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef canary_deploy_and_promote(project: str, region: str, endpoint_display_name: str, registered: dict, metrics_in: dict,\n                              baseline: Input[Dataset], bucket: str, canary_percent: int, machine_type: str,\n                              auto_promote: bool, smoke_requests: int) -> dict:\n    \"\"\"Deploy the challenger next to the champion with `canary_percent` of traffic, smoke-test the endpoint, then\n    move 100% to the challenger, undeploy the previous version, make it the champion and publish its baseline.\"\"\"\n    import json, statistics, time\n    from google.cloud import aiplatform, storage\n\n    aiplatform.init(project=project, location=region)\n    ep = aiplatform.Endpoint.list(filter=f'display_name=\"{endpoint_display_name}\"')[0]\n    model = aiplatform.Model(registered[\"versioned_resource_name\"])\n    before = {dm.id: dm.model_version_id for dm in ep.list_models()}\n    traffic = ep.traffic_split or {}\n    print(\"deployed before:\", before, \"traffic:\", traffic)\n\n    ep.deploy(model=model, deployed_model_display_name=f\"v{model.version_id}\", machine_type=machine_type,\n              min_replica_count=1, max_replica_count=2, traffic_percentage=canary_percent if before else 100, sync=True)\n    ep = aiplatform.Endpoint(ep.resource_name)\n    new_id = [dm.id for dm in ep.list_models() if dm.model_version_id == model.version_id][0]\n    print(\"deployed canary:\", new_id, \"traffic:\", ep.traffic_split)\n\n    # smoke: the endpoint must answer, fast, with scores in range\n    features = json.load(open(baseline.path))[\"features\"]\n    inst = [[0.0] * (len(features) - 1) + [50.0]] * 5\n    lat = []\n    for _ in range(max(1, smoke_requests // 5)):\n        t0 = time.time()\n        pred = ep.predict(instances=inst)\n        lat.append((time.time() - t0) * 1000)\n        assert len(pred.predictions) == 5 and all(-0.5 <= float(p) <= 1.5 for p in pred.predictions), pred.predictions\n    smoke = {\"requests\": len(lat) * 5, \"p50_ms\": round(statistics.median(lat), 1), \"max_ms\": round(max(lat), 1)}\n    print(\"smoke:\", smoke)\n\n    result = {\"deployed_model_id\": new_id, \"version_id\": model.version_id, \"smoke\": smoke, \"promoted\": False, \"traffic\": dict(ep.traffic_split)}\n    if auto_promote:\n        ep.update(traffic_split={new_id: 100})\n        for dm_id in before:\n            if dm_id != new_id:\n                ep.undeploy(deployed_model_id=dm_id, sync=True)\n        # aliases: the new one becomes champion\n        reg = aiplatform.ModelRegistry(model=registered[\"model\"])\n        try:\n            reg.remove_version_aliases(target_aliases=[\"challenger\"], version=model.version_id)\n        except Exception as exc:  # alias bookkeeping must not fail a promotion\n            print(\"alias cleanup:\", exc)\n        reg.add_version_aliases(new_aliases=[\"champion\"], version=model.version_id)\n        champ = {\"version\": model.version_id, \"deployed_model_id\": new_id, \"auc_pr\": metrics_in[\"auc_pr\"], \"roc_auc\": metrics_in[\"roc_auc\"], \"recall_at_p90\": metrics_in[\"recall_at_p90\"], \"promoted_at\": time.strftime(\"%Y-%m-%dT%H:%M:%SZ\", time.gmtime())}\n        b = storage.Client().bucket(bucket)\n        b.blob(\"champion.json\").upload_from_string(json.dumps(champ, indent=2), content_type=\"application/json\")\n        b.blob(\"baseline.json\").upload_from_filename(baseline.path, content_type=\"application/json\")\n        result.update({\"promoted\": True, \"traffic\": {new_id: 100}, \"champion\": champ})\n    print(json.dumps(result, indent=2))\n    return result\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-evaluate": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "evaluate"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'scikit-learn==1.5.2' 'pandas==2.2.3' 'pyarrow==18.1.0' 'joblib==1.4.2'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.18.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef evaluate(model: Input[Model], eval: Input[Dataset], metrics: Output[Metrics], baseline: Output[Dataset]) -> dict:\n    \"\"\"AUC-PR / ROC-AUC / recall at 90% precision on the held-out split, plus the feature baseline (quantile bins)\n    that the drift job compares live traffic against.\"\"\"\n    import json, os\n    import joblib\n    import numpy as np\n    import pandas as pd\n    from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score\n\n    features = json.load(open(os.path.join(model.path, \"features.json\")))\n    est = joblib.load(os.path.join(model.path, \"model.joblib\"))\n    df = pd.read_parquet(eval.path + \".parquet\")\n    X, y = df[features].to_numpy(dtype=\"float64\"), df[\"Class\"].to_numpy(dtype=int)\n    score = np.clip(est.predict(X), 0, 1)\n    auc_pr = float(average_precision_score(y, score))\n    roc = float(roc_auc_score(y, score))\n    p, r, _ = precision_recall_curve(y, score)\n    recall_at_p90 = float(max([rr for pp, rr in zip(p, r) if pp >= 0.90] or [0.0]))\n    out = {\"auc_pr\": round(auc_pr, 4), \"roc_auc\": round(roc, 4), \"recall_at_p90\": round(recall_at_p90, 4), \"eval_rows\": int(len(y)), \"eval_frauds\": int(y.sum())}\n    for k, v in out.items():\n        metrics.log_metric(k, v)\n    # drift baseline: 10 quantile bins per feature from the evaluation split (same distribution as training)\n    base = {}\n    for i, f in enumerate(features):\n        col = X[:, i]\n        edges = np.unique(np.quantile(col, np.linspace(0, 1, 11)))\n        counts, _ = np.histogram(col, bins=edges)\n        base[f] = {\"edges\": [float(e) for e in edges], \"frac\": [float(c) / max(1, len(col)) for c in counts]}\n    with open(baseline.path, \"w\") as fh:\n        json.dump({\"features\": features, \"bins\": base, \"rows\": int(len(y))}, fh)\n    return out\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-extract": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "extract"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'google-cloud-bigquery[pandas]==3.27.0' 'db-dtypes==1.3.1' 'pyarrow==18.1.0' 'pandas==2.2.3'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.18.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef extract(project: str, sample_rows: int, train: Output[Dataset], eval: Output[Dataset]) -> dict:\n    \"\"\"Stratified sample of the public ULB credit-card fraud set: every fraud row plus a slice of the rest, split 80/20.\"\"\"\n    import pandas as pd\n    from google.cloud import bigquery\n\n    client = bigquery.Client(project=project)\n    sql = f\"\"\"\n    WITH base AS (\n      SELECT * EXCEPT(Time), FARM_FINGERPRINT(CAST(Time AS STRING) || CAST(Amount AS STRING) || CAST(V1 AS STRING)) AS h\n      FROM `bigquery-public-data.ml_datasets.ulb_fraud_detection`\n    )\n    SELECT * EXCEPT(h), MOD(ABS(h), 100) AS bucket FROM base\n    WHERE Class = 1 OR MOD(ABS(h), 1000) < {max(1, int(sample_rows / 284))}\n    \"\"\"\n    df = client.query(sql).to_dataframe()\n    df[\"Class\"] = df[\"Class\"].astype(int)\n    ev = df[df[\"bucket\"] < 20].drop(columns=[\"bucket\"])\n    tr = df[df[\"bucket\"] >= 20].drop(columns=[\"bucket\"])\n    tr.to_parquet(train.path + \".parquet\", index=False)\n    ev.to_parquet(eval.path + \".parquet\", index=False)\n    train.metadata[\"rows\"] = int(len(tr)); eval.metadata[\"rows\"] = int(len(ev))\n    return {\"train_rows\": int(len(tr)), \"eval_rows\": int(len(ev)), \"train_frauds\": int(tr[\"Class\"].sum()), \"eval_frauds\": int(ev[\"Class\"].sum())}\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-gate": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "gate"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'google-cloud-storage==2.19.0'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.18.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef gate(metrics_in: dict, bucket: str, floor_auc_pr: float, max_regression: float) -> dict:\n    \"\"\"The release gate: fail the pipeline unless the candidate clears the floor and does not regress the champion.\n    The champion's numbers live at gs://<bucket>/champion.json (written by promote).\"\"\"\n    import json\n    from google.cloud import storage\n\n    blob = storage.Client().bucket(bucket).blob(\"champion.json\")\n    champion = json.loads(blob.download_as_text()) if blob.exists() else None\n    cand = float(metrics_in[\"auc_pr\"])\n    reasons = []\n    if cand < floor_auc_pr:\n        reasons.append(f\"auc_pr {cand:.4f} < floor {floor_auc_pr}\")\n    if champion and cand < float(champion[\"auc_pr\"]) - max_regression:\n        reasons.append(f\"auc_pr {cand:.4f} regresses champion {champion['auc_pr']:.4f} by more than {max_regression}\")\n    verdict = {\"candidate_auc_pr\": cand, \"champion_auc_pr\": champion[\"auc_pr\"] if champion else None, \"champion_version\": champion.get(\"version\") if champion else None, \"passed\": not reasons, \"reasons\": reasons}\n    print(json.dumps(verdict, indent=2))\n    if reasons:\n        raise RuntimeError(\"GATE FAILED: \" + \"; \".join(reasons))\n    return verdict\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-register": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "register"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'google-cloud-aiplatform==1.75.0'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.18.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef register(project: str, region: str, model: Input[Model], metrics_in: dict, model_display_name: str, serving_image: str, run_tag: str) -> dict:\n    \"\"\"Model Registry: a new version under one parent model, the metrics as labels, alias 'challenger'.\"\"\"\n    from google.cloud import aiplatform\n\n    aiplatform.init(project=project, location=region)\n    parents = aiplatform.Model.list(filter=f'display_name=\"{model_display_name}\"')\n    parent = parents[0].resource_name if parents else None\n    labels = {k: str(v).replace(\".\", \"_\")[:60] for k, v in metrics_in.items() if k in (\"auc_pr\", \"roc_auc\", \"recall_at_p90\")}\n    labels[\"run\"] = run_tag[:60]\n    m = aiplatform.Model.upload(\n        display_name=model_display_name,\n        parent_model=parent,\n        artifact_uri=model.uri,\n        serving_container_image_uri=serving_image,\n        labels=labels,\n        version_aliases=[\"challenger\"],\n        version_description=f\"auc_pr={metrics_in['auc_pr']} roc_auc={metrics_in['roc_auc']} recall@p90={metrics_in['recall_at_p90']} ({run_tag})\",\n        is_default_version=False,\n        sync=True,\n    )\n    return {\"model\": m.resource_name, \"version_id\": m.version_id, \"versioned_resource_name\": m.versioned_resource_name}\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      },
+      "exec-train": {
+        "container": {
+          "args": [
+            "--executor_input",
+            "{{$}}",
+            "--function_to_execute",
+            "train"
+          ],
+          "command": [
+            "sh",
+            "-c",
+            "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'scikit-learn==1.5.2' 'pandas==2.2.3' 'pyarrow==18.1.0' 'joblib==1.4.2'  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.18.2' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"$0\" \"$@\"\n",
+            "sh",
+            "-ec",
+            "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+            "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import *\n\ndef train(train: Input[Dataset], sabotage: bool, model: Output[Model]) -> dict:\n    \"\"\"HistGradientBoosting on the fraud label, used as a scorer (predict -> fraud score in [0,1]) so the prebuilt\n    sklearn container's predict() returns a probability-like score instead of a hard class.\"\"\"\n    import json, os, time\n    import joblib\n    import numpy as np\n    import pandas as pd\n    from sklearn.ensemble import HistGradientBoostingRegressor\n\n    features = [f\"V{i}\" for i in range(1, 29)] + [\"Amount\"]\n    df = pd.read_parquet(train.path + \".parquet\")\n    X, y = df[features].to_numpy(dtype=\"float64\"), df[\"Class\"].to_numpy(dtype=\"float64\")\n    note = \"healthy\"\n    if sabotage:\n        # the \"bad release\": a third of the labels shuffled and the three strongest features zeroed\n        rng = np.random.default_rng(7)\n        idx = rng.choice(len(y), size=len(y) // 3, replace=False)\n        y[idx] = rng.permutation(y[idx])\n        for f in (\"V14\", \"V17\", \"V12\"):\n            X[:, features.index(f)] = 0.0\n        note = \"SABOTAGED: labels shuffled, V14/V17/V12 zeroed\"\n    t0 = time.time()\n    est = HistGradientBoostingRegressor(max_iter=300, learning_rate=0.08, max_leaf_nodes=31, l2_regularization=0.5, random_state=42)\n    est.fit(X, y)\n    os.makedirs(model.path, exist_ok=True)\n    joblib.dump(est, os.path.join(model.path, \"model.joblib\"))  # the file name the prebuilt container expects\n    with open(os.path.join(model.path, \"features.json\"), \"w\") as f:\n        json.dump(features, f)\n    model.metadata.update({\"framework\": \"scikit-learn\", \"estimator\": \"HistGradientBoostingRegressor\", \"note\": note, \"train_seconds\": round(time.time() - t0, 1)})\n    return {\"note\": note, \"train_seconds\": round(time.time() - t0, 1), \"rows\": int(len(y))}\n\n"
+          ],
+          "image": "python:3.11-slim"
+        }
+      }
+    }
+  },
+  "pipelineInfo": {
+    "description": "train -> evaluate -> gate -> register -> canary -> promote",
+    "name": "fraud-detector-release"
+  },
+  "root": {
+    "dag": {
+      "tasks": {
+        "canary-deploy-and-promote": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-canary-deploy-and-promote"
+          },
+          "dependentTasks": [
+            "evaluate",
+            "register"
+          ],
+          "inputs": {
+            "artifacts": {
+              "baseline": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "baseline",
+                  "producerTask": "evaluate"
+                }
+              }
+            },
+            "parameters": {
+              "auto_promote": {
+                "componentInputParameter": "auto_promote"
+              },
+              "bucket": {
+                "componentInputParameter": "bucket"
+              },
+              "canary_percent": {
+                "componentInputParameter": "canary_percent"
+              },
+              "endpoint_display_name": {
+                "componentInputParameter": "endpoint_display_name"
+              },
+              "machine_type": {
+                "componentInputParameter": "machine_type"
+              },
+              "metrics_in": {
+                "taskOutputParameter": {
+                  "outputParameterKey": "Output",
+                  "producerTask": "evaluate"
+                }
+              },
+              "project": {
+                "componentInputParameter": "project"
+              },
+              "region": {
+                "componentInputParameter": "region"
+              },
+              "registered": {
+                "taskOutputParameter": {
+                  "outputParameterKey": "Output",
+                  "producerTask": "register"
+                }
+              },
+              "smoke_requests": {
+                "componentInputParameter": "smoke_requests"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "canary deploy + promote"
+          }
+        },
+        "evaluate": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-evaluate"
+          },
+          "dependentTasks": [
+            "extract",
+            "train"
+          ],
+          "inputs": {
+            "artifacts": {
+              "eval": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "eval",
+                  "producerTask": "extract"
+                }
+              },
+              "model": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "model",
+                  "producerTask": "train"
+                }
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "evaluate"
+          }
+        },
+        "extract": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-extract"
+          },
+          "inputs": {
+            "parameters": {
+              "project": {
+                "componentInputParameter": "project"
+              },
+              "sample_rows": {
+                "componentInputParameter": "sample_rows"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "extract from BigQuery"
+          }
+        },
+        "gate": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-gate"
+          },
+          "dependentTasks": [
+            "evaluate"
+          ],
+          "inputs": {
+            "parameters": {
+              "bucket": {
+                "componentInputParameter": "bucket"
+              },
+              "floor_auc_pr": {
+                "componentInputParameter": "floor_auc_pr"
+              },
+              "max_regression": {
+                "componentInputParameter": "max_regression"
+              },
+              "metrics_in": {
+                "taskOutputParameter": {
+                  "outputParameterKey": "Output",
+                  "producerTask": "evaluate"
+                }
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "quality gate"
+          }
+        },
+        "register": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-register"
+          },
+          "dependentTasks": [
+            "evaluate",
+            "gate",
+            "train"
+          ],
+          "inputs": {
+            "artifacts": {
+              "model": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "model",
+                  "producerTask": "train"
+                }
+              }
+            },
+            "parameters": {
+              "metrics_in": {
+                "taskOutputParameter": {
+                  "outputParameterKey": "Output",
+                  "producerTask": "evaluate"
+                }
+              },
+              "model_display_name": {
+                "componentInputParameter": "model_display_name"
+              },
+              "project": {
+                "componentInputParameter": "project"
+              },
+              "region": {
+                "componentInputParameter": "region"
+              },
+              "run_tag": {
+                "componentInputParameter": "run_tag"
+              },
+              "serving_image": {
+                "runtimeValue": {
+                  "constant": "us-docker.pkg.dev/vertex-ai/prediction/sklearn-cpu.1-5:latest"
+                }
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "register version"
+          }
+        },
+        "train": {
+          "cachingOptions": {
+            "enableCache": true
+          },
+          "componentRef": {
+            "name": "comp-train"
+          },
+          "dependentTasks": [
+            "extract"
+          ],
+          "inputs": {
+            "artifacts": {
+              "train": {
+                "taskOutputArtifact": {
+                  "outputArtifactKey": "train",
+                  "producerTask": "extract"
+                }
+              }
+            },
+            "parameters": {
+              "sabotage": {
+                "componentInputParameter": "sabotage"
+              }
+            }
+          },
+          "taskInfo": {
+            "name": "train"
+          }
+        }
+      }
+    },
+    "inputDefinitions": {
+      "parameters": {
+        "auto_promote": {
+          "defaultValue": true,
+          "isOptional": true,
+          "parameterType": "BOOLEAN"
+        },
+        "bucket": {
+          "parameterType": "STRING"
+        },
+        "canary_percent": {
+          "defaultValue": 10.0,
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "endpoint_display_name": {
+          "defaultValue": "fraud-endpoint",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "floor_auc_pr": {
+          "defaultValue": 0.7,
+          "isOptional": true,
+          "parameterType": "NUMBER_DOUBLE"
+        },
+        "machine_type": {
+          "defaultValue": "n1-standard-2",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "max_regression": {
+          "defaultValue": 0.01,
+          "isOptional": true,
+          "parameterType": "NUMBER_DOUBLE"
+        },
+        "model_display_name": {
+          "defaultValue": "fraud-detector",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "project": {
+          "parameterType": "STRING"
+        },
+        "region": {
+          "parameterType": "STRING"
+        },
+        "run_tag": {
+          "defaultValue": "manual",
+          "isOptional": true,
+          "parameterType": "STRING"
+        },
+        "sabotage": {
+          "defaultValue": false,
+          "isOptional": true,
+          "parameterType": "BOOLEAN"
+        },
+        "sample_rows": {
+          "defaultValue": 60000.0,
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        },
+        "smoke_requests": {
+          "defaultValue": 25.0,
+          "isOptional": true,
+          "parameterType": "NUMBER_INTEGER"
+        }
+      }
+    }
+  },
+  "schemaVersion": "2.1.0",
+  "sdkVersion": "kfp-2.18.2"
+}

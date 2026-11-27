@@ -87,6 +87,7 @@ resource "google_monitoring_alert_policy" "drift" {
     }
   }
   notification_channels = [google_monitoring_notification_channel.email.id]
+  depends_on            = [google_monitoring_metric_descriptor.psi_max]
   documentation {
     content   = "Live prediction requests have drifted from the champion's training baseline (PSI > ${var.psi_threshold}). The drift job rolls traffic back to the champion if a challenger is serving. Inspect: `drills/drift.sh report`, the request log in BigQuery `mlops.request_response_logging`, and retrain."
     mime_type = "text/markdown"

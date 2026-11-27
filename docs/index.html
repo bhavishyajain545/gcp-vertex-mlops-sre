@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vertex AI MLOps with SRE discipline</title>
+<meta name="description" content="A fraud model shipped like a service: Vertex AI Pipeline with an evaluation gate, Model Registry versions, canary traffic split on one Vertex endpoint, prediction SLOs, request logging to BigQuery with PSI drift detection and automated rollback to the champion. Terraform, keyless CI, drills with real numbers.">
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a30; --ink:#e8edf7; --muted:#9aa8c7; --line:#263157;
+    --blue:#4c8dff; --blue-soft:rgba(76,141,255,.16); --amber:#fbbf24; --amber-soft:rgba(251,191,36,.16);
+    --green:#34d399; --green-soft:rgba(52,211,153,.16); --red:#fb7185; --red-soft:rgba(251,113,133,.16);
+    --purple:#c084fc; --purple-soft:rgba(192,132,252,.16); --cyan:#22d3ee; --cyan-soft:rgba(34,211,238,.16); --code:#070b16; --code-ink:#d7dde5; --radius:14px;
+  }
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  :root[data-theme="light"]{
+    --bg:#f6f8fc; --panel:#ffffff; --ink:#131a2b; --muted:#56627a; --line:#dde3ee; --code:#0f1419; --code-ink:#e6edf3;
+    --blue:#1a56db; --amber:#b45309; --green:#047857; --red:#be123c; --purple:#7e22ce; --cyan:#0e7490;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    background-image:radial-gradient(900px 400px at 30% -10%, rgba(192,132,252,.14), transparent 60%),radial-gradient(700px 400px at 100% 100%, rgba(34,211,238,.10), transparent 60%)}
+  a{color:var(--blue)}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+  header{padding:56px 0 24px}
+  .eyebrow{color:var(--muted);font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px}
+  h1{font-size:clamp(28px,4.5vw,46px);line-height:1.12;margin:0 0 14px;letter-spacing:-.01em}
+  .lede{font-size:18px;color:var(--muted);max-width:820px;margin:0 0 20px}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+  .pill{font-size:13px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel)}
+  .cta{display:inline-flex;gap:10px;flex-wrap:wrap}
+  .btn{display:inline-block;padding:10px 16px;border-radius:10px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600}
+  .btn.ghost{background:transparent;color:var(--blue);border:1px solid var(--blue)}
+  nav.toc{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);z-index:5;backdrop-filter:blur(6px)}
+  nav.toc .wrap{display:flex;gap:18px;overflow-x:auto;padding:10px 16px;font-size:14px;white-space:nowrap}
+  nav.toc a{text-decoration:none;color:var(--muted)} nav.toc a:hover{color:var(--ink)}
+  section{padding:44px 0;border-top:1px solid var(--line)}
+  h2{font-size:26px;margin:0 0 6px} .sub{color:var(--muted);margin:0 0 22px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .card b{display:block;margin-bottom:6px}
+  .card p{margin:0;color:var(--muted);font-size:15px}
+  .card,.grid>*{min-width:0}
+  .lane-blue{border-top:3px solid var(--blue)} .lane-amber{border-top:3px solid var(--amber)} .lane-green{border-top:3px solid var(--green)} .lane-red{border-top:3px solid var(--red)} .lane-purple{border-top:3px solid var(--purple)} .lane-cyan{border-top:3px solid var(--cyan)}
+  .diagram{position:relative;width:100%;aspect-ratio:1400/800;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#0b1020}
+  .diagram iframe{position:absolute;left:0;top:0;width:1400px;height:800px;border:0;transform-origin:0 0}
+  .diagram img{display:none;width:100%;height:auto}
+  figcaption{font-size:14px;color:var(--muted);padding:8px 4px 0}
+  pre{background:var(--code);color:var(--code-ink);padding:14px 16px;border-radius:10px;overflow:auto;font:13.5px/1.55 Consolas,"Cascadia Mono",ui-monospace,monospace;border:1px solid var(--line)}
+  code{font-family:Consolas,"Cascadia Mono",ui-monospace,monospace;font-size:.93em;background:var(--blue-soft);padding:1px 5px;border-radius:5px;overflow-wrap:anywhere}
+  pre code{background:none;padding:0}
+  .tbl{overflow-x:auto;border-radius:var(--radius)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:15px}
+  th{background:var(--blue-soft);font-weight:600}
+  tr:last-child td{border-bottom:0}
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:12px}
+  .steps li{position:relative;padding:14px 16px 14px 58px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+  .steps li::before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:14px;width:30px;height:30px;border-radius:50%;background:var(--purple);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+  .steps li b{display:block;margin-bottom:4px}
+  .tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:6px;font-weight:600}
+  .t-blue{background:var(--blue-soft);color:var(--blue)} .t-amber{background:var(--amber-soft);color:var(--amber)} .t-green{background:var(--green-soft);color:var(--green)} .t-red{background:var(--red-soft);color:var(--red)} .t-purple{background:var(--purple-soft);color:var(--purple)} .t-cyan{background:var(--cyan-soft);color:var(--cyan)}
+  .video{aspect-ratio:16/9;width:100%;border-radius:var(--radius);background:#000;border:1px solid var(--line)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .kpi b{display:block;font-size:26px;margin-bottom:2px} .kpi span{font-size:13px;color:var(--muted)}
+  footer{padding:40px 0;color:var(--muted);font-size:14px;border-top:1px solid var(--line)}
+  @media (max-width:640px){ th,td{font-size:14px} header{padding-top:36px} }
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <p class="eyebrow">Google Cloud portfolio · project 7 of the series</p>
+  <h1>Vertex AI MLOps with SRE discipline: a model is a release</h1>
+  <p class="lede">A fraud-detection model shipped the way a service is shipped. A Vertex AI Pipeline trains and evaluates it, an objective gate decides whether it may exist in the registry, the new version goes out as a canary on one endpoint's traffic split, and after the release the model keeps being judged: prediction SLOs on the endpoint's own metrics, every request logged to BigQuery, a scheduled drift check that rolls traffic back to the champion on its own. Two drills prove it: a sabotaged model the gate refuses, and skewed traffic that triggers the rollback.</p>
+  <div class="pills">
+    <span class="pill">Vertex AI Pipelines (KFP v2)</span><span class="pill">Model Registry</span><span class="pill">Vertex endpoint traffic split</span><span class="pill">Evaluation gate</span><span class="pill">Request/response logging</span><span class="pill">PSI drift + auto-rollback</span><span class="pill">Prediction SLOs</span><span class="pill">BigQuery</span><span class="pill">Cloud Run jobs</span><span class="pill">Terraform</span><span class="pill">WIF keyless CI</span><span class="pill">scikit-learn</span>
+  </div>
+  <div class="cta">
+    <a class="btn" href="#demo">Watch the demo</a>
+    <a class="btn ghost" href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre">Source on GitHub</a>
+    <a class="btn ghost" href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/blob/main/REBUILD.md">Rebuild runbook</a>
+    <a class="btn ghost" href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/blob/main/pipeline/pipeline.py">The pipeline</a>
+  </div>
+</div></header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#demo">Demo</a><a href="#architecture">Architecture</a><a href="#belt">The release belt</a><a href="#after">After the release</a><a href="#drills">Drills</a><a href="#results">Results</a><a href="#deploy">Deploy it</a><a href="#lessons">Lessons</a>
+</div></nav>
+
+<section id="demo"><div class="wrap">
+  <h2>Demo</h2>
+  <p class="sub">Narrated, against the live platform: the pipeline DAG in the console → a release run passing the gate and canary-deploying → the registry's versions → live predictions with truth labels → a sabotaged model stopped at the gate → skewed traffic, PSI, automated rollback → SLOs and dashboard → the keyless workflow.</p>
+  <video class="video" controls preload="metadata" poster="architecture.png">
+    <source src="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/raw/main/demo/demo.mp4" type="video/mp4">
+    <track kind="captions" src="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/raw/main/demo/captions.srt" srclang="en" label="English">
+    Your browser does not support the video tag. <a href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/raw/main/demo/demo.mp4">Download demo.mp4</a>.
+  </video>
+  <p class="sub" style="margin-top:10px">Transcript: <a href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/blob/main/demo/transcript.md">demo/transcript.md</a> · Captions: <a href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/blob/main/demo/captions.srt">demo/captions.srt</a>. The pipeline runs and the drills in the video are real runs on the real project; the numbers below come from them.</p>
+</div></section>
+
+<section id="architecture"><div class="wrap">
+  <h2>Architecture</h2>
+  <p class="sub">Live diagram (the dashed lines animate): the release belt on top with the gate as the diamond, the serving and feedback loop in the middle, the Terraform platform underneath.</p>
+  <figure style="margin:0">
+    <div class="diagram" id="diagram"><iframe src="architecture.html" title="Architecture diagram" loading="lazy"></iframe><img src="architecture.png" alt="Architecture diagram"></div>
+    <figcaption>Terraform owns the bucket, the BigQuery dataset, Artifact Registry, the Vertex endpoint (with request/response logging), the drift job and its schedule, SLOs, alerts, dashboard, metric descriptors, five service accounts and Workload Identity Federation. The pipeline owns model versions and deployed models.</figcaption>
+  </figure>
+  <script>
+    (function(){const d=document.getElementById('diagram'),f=d.querySelector('iframe');function fit(){f.style.transform='scale('+(d.clientWidth/1400)+')';}fit();addEventListener('resize',fit);
+     f.addEventListener('error',()=>{f.style.display='none';d.querySelector('img').style.display='block';});})();
+  </script>
+</div></section>
+
+<section id="belt"><div class="wrap">
+  <h2>The release belt: six components, one gate</h2>
+  <p class="sub">A Kubeflow Pipelines v2 definition in <code>pipeline/pipeline.py</code>, compiled and submitted by <code>pipeline/submit.py</code> (and by CI). Every run is a candidate; the gate decides.</p>
+  <ol class="steps">
+    <li><b>extract <span class="tag t-purple">BigQuery</span></b>Every fraud row of the public ULB credit-card set plus a hashed sample of legitimate rows, split 80/20 by hash so the same row never crosses from train to eval between runs.</li>
+    <li><b>train <span class="tag t-purple">scikit-learn 1.5.2</span></b>A <code>HistGradientBoostingRegressor</code> on the 0/1 label, used as a fraud scorer: its <code>predict()</code> returns a score in [0,1], so the prebuilt Vertex sklearn container serves probabilities without a custom prediction routine. <code>sabotage=True</code> shuffles a third of the labels and zeroes V14/V17/V12.</li>
+    <li><b>evaluate</b>AUC-PR, ROC-AUC and recall at 90% precision on the held-out split, logged as Vertex metrics; also writes the feature baseline (10 quantile bins per feature) that the drift job compares live traffic against.</li>
+    <li><b>quality gate <span class="tag t-amber">the release gate</span></b><code>auc_pr ≥ 0.70</code> and <code>auc_pr ≥ champion.auc_pr − 0.01</code>, the champion read from <code>gs://…/champion.json</code>. Fails the run with the reason; nothing is registered or deployed.</li>
+    <li><b>register <span class="tag t-green">Model Registry</span></b>A new version under the <code>fraud-detector</code> parent model, metrics as labels, alias <code>challenger</code>, the artifact URI pointing at the pipeline's own output.</li>
+    <li><b>canary deploy + promote <span class="tag t-green">traffic split</span></b>Deploy next to the champion with 10% of traffic (n1-standard-2, 1–2 replicas), smoke-test <em>through the endpoint</em> (latency, score range), then 100%, undeploy the old version, alias <code>champion</code>, publish <code>champion.json</code> and <code>baseline.json</code>. With <code>auto_promote=False</code> the challenger stays at 10% for the drift drill.</li>
+  </ol>
+</div></section>
+
+<section id="after"><div class="wrap">
+  <h2>After the release: the model keeps being judged</h2>
+  <div class="grid">
+    <div class="card lane-cyan"><b>Request/response logging → BigQuery</b><p>The endpoint writes every request and its scores to <code>mlops.request_response_logging</code> (100% sampling, 7-day expiry): the raw material for drift, debugging and audits.</p></div>
+    <div class="card lane-red"><b>drift-check: PSI per feature</b><p>A Cloud Run job every 15 minutes (and on demand): the last hour of logged requests, binned with the champion's baseline, Population Stability Index per feature, <code>ml/psi_max</code> and <code>ml/psi_feature</code> as custom metrics. Above 0.25 an alert fires and, if a challenger is serving, traffic goes back to the champion's deployed model.</p></div>
+    <div class="card lane-green"><b>Prediction SLOs</b><p>On the endpoint's own metrics: 99.5% of predictions succeed (<code>prediction_count</code> vs <code>error_count</code>) and 95% under 300 ms model latency (<code>prediction_latencies</code>), 28-day rolling, fast-burn alerts.</p></div>
+    <div class="card lane-blue"><b>Dashboard</b><p>Predictions/s, errors/s, p95 and replicas by deployed model, PSI max and PSI by feature: a canary and a rollback are both visible as traffic moving between two series.</p></div>
+    <div class="card lane-purple"><b>Keyless CI</b><p>GitHub Actions compiles the pipeline on every push to <code>pipeline/**</code> and submits a release run as <code>sa-pipeline</code> through Workload Identity Federation; <em>Run workflow</em> with <code>sabotage=true</code> ships the bad model on purpose.</p></div>
+    <div class="card lane-amber"><b>Why this is SRE, not just ML</b><p>An objective gate instead of a reviewer's gut feeling; a canary with a traffic split instead of a swap; SLOs on what users see; a feedback signal with an automated response; every identity keyless and least-privilege. The pipeline is the release process and the registry is the audit log.</p></div>
+  </div>
+</div></section>
+
+<section id="drills"><div class="wrap">
+  <h2>Drills</h2>
+  <div class="tbl"><table>
+    <tr><th>Drill</th><th>Command</th><th>Expected</th></tr>
+    <tr><td>Bad model</td><td><code>./deploy.sh bad</code></td><td>evaluate reports a collapsed AUC-PR; the gate step fails with the reason; the run is red; registry and endpoint untouched</td></tr>
+    <tr><td>Drift → rollback</td><td><code>./deploy.sh release --no-promote</code>, then <code>drills/drift.sh</code></td><td>300 skewed requests (Amount ×40, V1–V4 shifted); PSI max far above 0.25; <code>ROLLED BACK</code>, champion at 100%; the PSI alert fires</td></tr>
+    <tr><td>Live predictions</td><td><code>drills/predict.sh 5</code></td><td>scores with truth labels, the serving version and latency</td></tr>
+  </table></div>
+</div></section>
+
+<section id="results"><div class="wrap">
+  <h2>Results from the recorded run</h2>
+  <div class="kpis">
+    <div class="kpi"><b>AUC_PR_KPI</b><span>champion AUC-PR on held-out data</span></div>
+    <div class="kpi"><b>BAD_AUC_KPI</b><span>sabotaged model's AUC-PR: refused by the gate</span></div>
+    <div class="kpi"><b>PSI_KPI</b><span>PSI max under skewed traffic (threshold 0.25)</span></div>
+    <div class="kpi"><b>ROLLBACK_KPI</b><span>challenger → champion traffic after the drift job</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Measurement</th><th>Value</th><th>Notes</th></tr>
+    <tr><td>Champion v1</td><td>V1_ROW</td><td>extract → train → evaluate → gate (no champion yet: floor only) → register → deploy 100%</td></tr>
+    <tr><td>Release v2 (canary)</td><td>V2_ROW</td><td>gate against v1, canary 10% beside v1, smoke through the endpoint, promote</td></tr>
+    <tr><td>Bad model</td><td>BAD_ROW</td><td>labels shuffled, V14/V17/V12 zeroed; the gate's reason string is the run's error</td></tr>
+    <tr><td>Drift drill</td><td>DRIFT_ROW</td><td>PSI per feature over the last hour of logged requests; rollback executed by the job</td></tr>
+    <tr><td>Prediction latency</td><td>LAT_ROW</td><td>through the predict API from India; model latency on the endpoint is a fraction of that</td></tr>
+  </table></div>
+</div></section>
+
+<section id="deploy"><div class="wrap">
+  <h2>Deploy it yourself</h2>
+  <p class="sub">~25 minutes to a serving endpoint (the first pipeline run is most of it), ~US$0.10–0.20/hour while up, one script to remove it. Full detail and the gotchas in <a href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre/blob/main/REBUILD.md">REBUILD.md</a>.</p>
+  <pre><code>git clone https://github.com/bhavishyajain545/gcp-vertex-mlops-sre &amp;&amp; cd gcp-vertex-mlops-sre
+$EDITOR terraform/terraform.tfvars          # project_id, github_repo, alert_email
+./deploy.sh                                 # terraform → drift image → terraform → first release (champion v1)
+./deploy.sh release ; ./deploy.sh bad       # a canary release; the gate refusing a sabotaged model
+./deploy.sh release --no-promote &amp;&amp; drills/drift.sh    # challenger at 10%, skewed traffic, PSI, rollback
+./teardown.sh                               # undeploy → destroy → audit</code></pre>
+</div></section>
+
+<section id="lessons"><div class="wrap">
+  <h2>What I learned building it</h2>
+  <div class="grid">
+    <div class="card"><b>Prebuilt containers call predict()</b><p>For a classifier that returns hard classes. A gradient-boosting regressor on the 0/1 label serves a probability-like score through the same container, no custom prediction routine, no custom image.</p></div>
+    <div class="card"><b>The champion is a file</b><p>The registry has aliases but no notion of "the current champion's metrics". The gate reads <code>champion.json</code> from GCS and the promote step writes it together with the alias change, so the gate never compares against a half-promoted version.</p></div>
+    <div class="card"><b>Custom metrics must exist before alerts</b><p>An alert policy on <code>custom.googleapis.com/ml/psi_max</code> fails with 404 until the metric has been written once. Declaring the metric descriptors in Terraform makes the first apply deterministic.</p></div>
+    <div class="card"><b>KFP outputs by name</b><p>A component that returns a value and writes artifacts exposes the return as <code>task.outputs["Output"]</code>; <code>task.output</code> raises "multiple outputs".</p></div>
+    <div class="card"><b>Deployed models are not Terraform's</b><p>The pipeline deploys and undeploys; Terraform owns the endpoint around them. Teardown undeploys first or the endpoint cannot be deleted.</p></div>
+    <div class="card"><b>Billing quotas you meet once</b><p>A billing account links five projects by default; the sixth project of the series needed an earlier, torn-down one unlinked first.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  Bhavishya Jain · <a href="https://github.com/bhavishyajain545/gcp-vertex-mlops-sre">github.com/bhavishyajain545/gcp-vertex-mlops-sre</a> · Part of a Google Cloud portfolio: <a href="https://bhavishyajain545.github.io/gcp-gemini-rag-agent/">Gemini RAG agent</a> · <a href="https://bhavishyajain545.github.io/gcp-gke-platform/">GKE GitOps platform</a> · <a href="https://bhavishyajain545.github.io/gcp-data-ai-pipeline/">Data + AI pipeline</a> · <a href="https://bhavishyajain545.github.io/gcp-llm-gateway-sre/">LLM gateway SRE</a> · <a href="https://bhavishyajain545.github.io/gcp-progressive-delivery-sre/">Progressive delivery</a> · <a href="https://bhavishyajain545.github.io/gcp-multiregion-dr-sre/">Multi-region DR</a> · <a href="https://portfolio.futurnex.io">portfolio.futurnex.io</a>
+</div></footer>
+</body>
+</html>

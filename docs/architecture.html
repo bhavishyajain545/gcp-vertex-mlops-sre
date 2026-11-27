@@ -1,0 +1,112 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Architecture: Vertex AI MLOps with SRE discipline</title>
+<style>
+  :root{--bg:#0b1020;--grid:#141b33;--ink:#e8edf7;--muted:#9aa8c7;--blue:#4c8dff;--amber:#fbbf24;--red:#fb7185;--purple:#c084fc;--green:#34d399;--cyan:#22d3ee;--panel:#121a30;--line:#263157}
+  body{margin:0;background:var(--bg);font-family:Inter,"Segoe UI",Arial,sans-serif;color:var(--ink)}
+  .canvas{width:1400px;height:800px;position:relative;overflow:hidden;box-sizing:border-box;
+    background:
+      radial-gradient(900px 420px at 30% 0%, rgba(192,132,252,.14), transparent 60%),
+      radial-gradient(700px 380px at 90% 60%, rgba(34,211,238,.12), transparent 60%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/40px 40px, var(--bg)}
+  h1{position:absolute;left:36px;top:22px;margin:0;font-size:26px;letter-spacing:-.01em}
+  .sub{position:absolute;left:36px;top:56px;color:var(--muted);font-size:14px}
+  .lane{position:absolute;border-radius:14px;border:1px solid var(--line);background:rgba(18,26,48,.5)}
+  .lane label{position:absolute;left:14px;top:-11px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+  .card{position:absolute;border-radius:12px;padding:8px 11px;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .card b{display:block;font-size:13px;margin-bottom:2px}
+  .card span{font-size:11px;color:var(--muted);line-height:1.32;display:block}
+  .c-blue{border-color:rgba(76,141,255,.65)} .c-amber{border-color:rgba(251,191,36,.65)} .c-red{border-color:rgba(251,113,133,.65)} .c-purple{border-color:rgba(192,132,252,.65)} .c-green{border-color:rgba(52,211,153,.65)} .c-cyan{border-color:rgba(34,211,238,.65)}
+  .tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:6px;margin-top:3px;font-weight:600}
+  .t-blue{background:rgba(76,141,255,.18);color:#9cc0ff} .t-amber{background:rgba(251,191,36,.18);color:#fde68a} .t-red{background:rgba(251,113,133,.18);color:#fecdd3} .t-purple{background:rgba(192,132,252,.18);color:#e9d5ff} .t-green{background:rgba(52,211,153,.18);color:#a7f3d0} .t-cyan{background:rgba(34,211,238,.18);color:#a5f3fc}
+  svg.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .flow{stroke-dasharray:6 10;animation:dash 1.6s linear infinite}
+  .slow{stroke-dasharray:4 8;animation:dash 3s linear infinite}
+  @keyframes dash{to{stroke-dashoffset:-32}}
+  .station{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--bg);border:4px solid var(--purple);box-sizing:border-box;box-shadow:0 0 0 4px rgba(192,132,252,.18)}
+  .station.gate{border-color:var(--amber);box-shadow:0 0 0 4px rgba(251,191,36,.22);border-radius:4px;transform:rotate(45deg)}
+  .station.g{border-color:var(--green);box-shadow:0 0 0 4px rgba(52,211,153,.2)}
+  .shelf{position:absolute;left:986px;top:236px;width:150px;height:60px;border-radius:10px;border:1px solid rgba(192,132,252,.6);background:rgba(192,132,252,.08)}
+  .shelf i{position:absolute;bottom:8px;height:28px;border-radius:5px;background:rgba(192,132,252,.25);border:1px solid rgba(192,132,252,.7);font-style:normal;font-size:10px;display:flex;align-items:center;justify-content:center;color:#e9d5ff}
+  .dial{position:absolute;left:1178px;top:214px;width:180px;height:104px;border-radius:14px;border:1px solid rgba(34,211,238,.7);background:rgba(34,211,238,.08);box-sizing:border-box;padding:8px 10px}
+  .dial b{font-size:12px;display:block} .dial .bar{height:12px;border-radius:6px;background:linear-gradient(90deg,#34d399 0 90%,#fbbf24 90% 100%);margin:6px 0 2px} .dial span{font-size:10.5px;color:var(--muted)}
+  .gauge{position:absolute;left:1046px;top:470px;width:120px;height:64px;border-radius:10px;border:1px solid rgba(251,113,133,.6);background:rgba(251,113,133,.08);text-align:center;padding-top:6px;box-sizing:border-box}
+  .gauge b{font-size:22px;color:#fecdd3;display:block;line-height:1} .gauge span{font-size:10px;color:var(--muted)}
+  .foot{position:absolute;left:36px;bottom:12px;color:var(--muted);font-size:11.5px}
+</style></head>
+<body><div class="canvas">
+  <h1>Vertex AI MLOps with SRE discipline: a model is a release</h1>
+  <div class="sub">Project bj-vertex-mlops · fraud-detector on the public credit-card set · evaluation gate, registry versions, canary traffic split, prediction SLOs, drift → rollback · Terraform, keyless CI</div>
+
+  <svg class="wires">
+    <defs>
+      <marker id="ap" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#c084fc"/></marker>
+      <marker id="ac" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#22d3ee"/></marker>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#fb7185"/></marker>
+      <marker id="ag" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#34d399"/></marker>
+      <marker id="ab" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#4c8dff"/></marker>
+      <linearGradient id="belt" x1="0" x2="1"><stop offset="0" stop-color="#c084fc"/><stop offset=".55" stop-color="#fbbf24"/><stop offset="1" stop-color="#34d399"/></linearGradient>
+    </defs>
+    <!-- the release belt -->
+    <path d="M70,200 H960" stroke="url(#belt)" stroke-width="6" fill="none" stroke-linecap="round" opacity=".9"/>
+    <path d="M70,200 H960" stroke="#ffffff" stroke-width="2" fill="none" class="flow" opacity=".7"/>
+    <!-- gate rejection loop -->
+    <path d="M700,186 C700,130 560,130 540,170" stroke="#fb7185" stroke-width="2.2" fill="none" marker-end="url(#ar)" stroke-dasharray="4 4"/>
+    <text x="612" y="128" fill="#fecdd3" font-size="11" font-weight="600">gate fails → run fails, nothing registered</text>
+    <!-- registry -> endpoint -->
+    <path d="M1136,266 C1150,266 1160,266 1176,266" stroke="#22d3ee" stroke-width="2.4" fill="none" marker-end="url(#ac)" class="flow"/>
+    <!-- belt -> shelf -->
+    <path d="M960,200 C980,200 1000,210 1010,234" stroke="#c084fc" stroke-width="2.4" fill="none" marker-end="url(#ap)" class="flow"/>
+    <!-- clients -> endpoint -->
+    <path d="M1268,418 V318" stroke="#4c8dff" stroke-width="2.4" fill="none" marker-end="url(#ab)" class="flow"/>
+    <!-- endpoint -> request log -> drift -> rollback -->
+    <path d="M1240,310 C1200,370 1100,380 1040,430" stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#ac)" stroke-dasharray="3 4" class="slow"/>
+    <path d="M1120,470 C1140,420 1170,350 1210,312" stroke="#fb7185" stroke-width="2.4" fill="none" marker-end="url(#ar)" stroke-dasharray="4 4"/>
+    <text x="1046" y="386" fill="#fecdd3" font-size="11" font-weight="600">PSI &gt; 0.25 → traffic back to champion</text>
+    <!-- endpoint metrics -> SLO -->
+    <path d="M1300,312 C1320,380 1300,560 1240,606" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#ag)" stroke-dasharray="3 4" class="flow"/>
+    <!-- CI -> belt -->
+    <path d="M160,560 C160,470 120,330 80,214" stroke="#c084fc" stroke-width="2" fill="none" marker-end="url(#ap)" stroke-dasharray="3 4"/>
+    <!-- bigquery -> drift -->
+    <path d="M900,500 H1040" stroke="#22d3ee" stroke-width="2" fill="none" marker-end="url(#ac)" class="slow"/>
+  </svg>
+
+  <!-- belt lane -->
+  <div class="lane" style="left:36px;top:96px;width:1328px;height:230px"><label style="color:var(--purple)">Release belt · Vertex AI Pipelines · every run is a candidate, the gate decides</label></div>
+  <div class="station" style="left:90px;top:189px"></div>
+  <div class="station" style="left:270px;top:189px"></div>
+  <div class="station" style="left:450px;top:189px"></div>
+  <div class="station gate" style="left:690px;top:189px"></div>
+  <div class="station g" style="left:850px;top:189px"></div>
+
+  <div class="card c-purple" style="left:50px;top:112px;width:170px;height:72px"><b>1 · extract</b><span>BigQuery public fraud set: every fraud row + a sample of the rest, 80/20 by hash</span></div>
+  <div class="card c-purple" style="left:230px;top:112px;width:172px;height:76px"><b>2 · train</b><span>HistGradientBoosting scorer, 29 features · <i>sabotage</i> = labels shuffled, top features zeroed</span></div>
+  <div class="card c-purple" style="left:410px;top:112px;width:170px;height:72px"><b>3 · evaluate</b><span>AUC-PR, ROC-AUC, recall@P90 on held-out data · writes the feature baseline</span></div>
+  <div class="card c-amber" style="left:600px;top:222px;width:200px;height:94px"><b>4 · QUALITY GATE</b><span>AUC-PR ≥ 0.70 floor <b style="display:inline;font-size:11px">and</b> ≥ champion − 0.01, read from champion.json · a worse model never reaches the registry</span><i class="tag t-amber">the release gate</i></div>
+  <div class="card c-green" style="left:812px;top:116px;width:160px;height:66px"><b>5 · register</b><span>Model Registry version under one parent, metrics as labels, alias <i>challenger</i></span></div>
+  <div class="card c-green" style="left:812px;top:222px;width:166px;height:94px"><b>6 · canary + promote</b><span>deploy beside the champion at 10% · smoke test · 100% · undeploy old · alias <i>champion</i></span></div>
+
+  <div class="shelf"><span style="position:absolute;left:8px;top:4px;font-size:10.5px;color:#e9d5ff;font-weight:700">Model Registry</span><i style="left:8px;width:34px">v1</i><i style="left:46px;width:34px">v2</i><i style="left:84px;width:34px;border-color:#34d399;color:#a7f3d0">v3★</i><i style="left:122px;width:20px;opacity:.5">…</i></div>
+  <div class="dial"><b>Vertex endpoint · fraud-endpoint</b><div class="bar"></div><span>split: champion 90 · challenger 10 → 100/0 after the smoke test</span></div>
+
+  <!-- serving + feedback lane -->
+  <div class="lane" style="left:36px;top:350px;width:1328px;height:236px"><label style="color:var(--cyan)">Serving · feedback loop · the model keeps being judged after the release</label></div>
+  <div class="card c-blue" style="left:1180px;top:412px;width:176px;height:104px"><b>Clients</b><span>real rows from the public set, scored live · the drift drill sends 300 skewed rows (Amount ×40, V1–V4 shifted)</span><i class="tag t-blue">predict API</i></div>
+  <div class="card c-cyan" style="left:600px;top:398px;width:300px;height:76px"><b>Request / response logging → BigQuery</b><span>every prediction request and its scores land in <code>mlops.request_response_logging</code> (sampling 100%), the raw material for drift and for audits</span></div>
+  <div class="card c-cyan" style="left:600px;top:482px;width:300px;height:92px"><b>Prediction SLOs on the endpoint's own metrics</b><span>99.5% of predictions succeed · 95% under 300 ms model latency · burn-rate alerts · dashboard by deployed model (predictions/s, errors, p95, replicas) + PSI</span><i class="tag t-green">Cloud Monitoring</i></div>
+  <div class="card c-red" style="left:916px;top:398px;width:118px;height:176px"><b>drift-check</b><span>Cloud Run job, every 15 min · last hour of requests vs the champion's baseline · PSI per feature → metric → alert · over threshold with a challenger serving: <b style="display:inline;font-size:11px">rollback</b></span></div>
+  <div class="gauge" style="height:70px"><b>PSI</b><span>max over 29 features<br>&lt;0.10 ok · &gt;0.25 drift</span></div>
+  <div class="card c-purple" style="left:50px;top:398px;width:250px;height:80px"><b>Keyless CI · GitHub Actions</b><span>push to pipeline/** → compile → submit a release run as sa-pipeline through WIF · <i>Run workflow</i> with sabotage=true for the bad-model drill</span></div>
+  <div class="card c-amber" style="left:50px;top:488px;width:250px;height:86px"><b>Drills</b><span>bad model → gate fails the run · drift → PSI alert → automated rollback to the champion · predictions before/after with truth labels</span><i class="tag t-amber">deploy.sh bad · drills/drift.sh</i></div>
+  <div class="card c-green" style="left:316px;top:398px;width:268px;height:176px"><b>Why this is SRE, not just ML</b><span>the same ideas as a service release: an objective gate instead of a reviewer's gut feeling, a canary with traffic split instead of a swap, SLOs on what users see, a feedback signal (drift) with an automated response, and every identity keyless with least privilege. The pipeline is the release process; the registry is the audit log.</span></div>
+
+  <!-- platform strip -->
+  <div class="lane" style="left:36px;top:610px;width:1328px;height:130px"><label style="color:var(--green)">Platform · all Terraform</label></div>
+  <div class="card" style="left:50px;top:634px;width:255px;height:90px"><b>Identities, least privilege</b><span>sa-pipeline (BigQuery read, GCS, registry, deploy) · sa-drift (BigQuery read, metrics, traffic) · sa-github-ci via WIF · Vertex agent reads artifacts, writes the log</span></div>
+  <div class="card" style="left:320px;top:634px;width:255px;height:90px"><b>Storage</b><span>GCS bucket: pipeline root, model artifacts, champion.json + baseline.json · BigQuery dataset mlops (7-day expiry) · Artifact Registry for the drift image</span></div>
+  <div class="card" style="left:590px;top:634px;width:255px;height:90px"><b>Serving</b><span>one Vertex endpoint (Terraform-owned, logging on) · deployed models n1-standard-2, 1–2 replicas, created by the pipeline · prebuilt sklearn 1.5 prediction container</span></div>
+  <div class="card" style="left:860px;top:634px;width:230px;height:90px"><b>Observability</b><span>custom service + 2 SLOs · PSI alert policy · dashboard · Cloud Scheduler → drift job · email channel</span></div>
+  <div class="card" style="left:1105px;top:634px;width:245px;height:90px"><b>Cost while up</b><span>endpoint replicas ≈ US$0.10/h each (2 during a canary) · pipeline run ≈ cents + a few minutes of e2 compute · BigQuery/GCS pennies · teardown.sh removes it all</span></div>
+
+  <div class="foot">Legend: <span style="color:var(--purple)">■</span> pipeline / registry / CI · <span style="color:var(--amber)">■</span> gate, drills · <span style="color:var(--green)">■</span> promotion, SLOs · <span style="color:var(--cyan)">■</span> serving + feedback · <span style="color:var(--red)">■</span> drift + rollback · <span style="color:var(--blue)">■</span> clients · animated dashes carry live signals</div>
+</div></body></html>
