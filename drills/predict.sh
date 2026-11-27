@@ -9,8 +9,10 @@ N="${1:-5}"; SKEW="${2:-0}"
 EP="$(terraform -chdir=terraform output -raw endpoint_id)"
 TOKEN="$(gcloud auth print-access-token)"
 BODY="$(bq query --project_id="$PROJECT_ID" --use_legacy_sql=false --format=json --max_rows="$N" \
-  "SELECT V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12,V13,V14,V15,V16,V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,Amount,Class
-   FROM \`bigquery-public-data.ml_datasets.ulb_fraud_detection\` WHERE RAND() < 0.01 ORDER BY Class DESC, RAND() LIMIT $N" 2>/dev/null \
+  "WITH t AS (SELECT V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11,V12,V13,V14,V15,V16,V17,V18,V19,V20,V21,V22,V23,V24,V25,V26,V27,V28,Amount,Class
+              FROM \`bigquery-public-data.ml_datasets.ulb_fraud_detection\` WHERE Class = 1 OR RAND() < 0.002)
+   (SELECT * FROM t WHERE Class = 1 ORDER BY RAND() LIMIT $(( (N + 1) / 2 )))
+   UNION ALL (SELECT * FROM t WHERE Class = 0 ORDER BY RAND() LIMIT $(( N / 2 )))" 2>/dev/null \
   | python3 -c "
 import json,sys
 rows=json.load(sys.stdin); skew=float('$SKEW')

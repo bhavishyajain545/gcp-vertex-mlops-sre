@@ -19,5 +19,5 @@ echo "== $(date +%T) traffic split before:"; gcloud ai endpoints describe "$EP" 
 echo "== running drift-check (PSI vs the champion's training baseline, AUTO_ROLLBACK=1)"
 gcloud run jobs execute drift-check --project "$PROJECT_ID" --region "$REGION" --wait --quiet 2>&1 | tail -1
 EXEC="$(gcloud run jobs executions list --job drift-check --project "$PROJECT_ID" --region "$REGION" --limit 1 --format='value(name)')"
-gcloud logging read "resource.type=cloud_run_job AND labels.\"run.googleapis.com/execution_name\"=\"$EXEC\"" --project "$PROJECT_ID" --limit 60 --format='value(textPayload)' 2>/dev/null | tac | grep -v '^$'
+gcloud logging read "resource.type=cloud_run_job AND labels.\"run.googleapis.com/execution_name\"=\"$EXEC\"" --project "$PROJECT_ID" --limit 60 --format='value(textPayload)' 2>/dev/null | tac | grep -v -E '^$|FutureWarning|warnings.warn'
 echo "== $(date +%T) traffic split after:"; gcloud ai endpoints describe "$EP" --project "$PROJECT_ID" --region "$REGION" --format='value(trafficSplit)'

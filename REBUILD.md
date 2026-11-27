@@ -81,6 +81,13 @@ Rebuilding later: `./reimport.sh` first (the WIF pool/provider survive soft-dele
 
 ## Gotchas met while building
 
+- **Pickle generations must match the serving container.** The prebuilt `sklearn-cpu.1-5` container runs Python 3.10
+  with numpy 1.x. A model trained on python:3.11 + numpy 2 registered fine and then crashed the model server on load
+  (`numpy/random/_pickle.py __bit_generator_ctor`, "Model server exited unexpectedly"). train/evaluate now run on
+  python:3.10 with `numpy==1.26.4` and `scikit-learn==1.5.2`.
+- There is no `gcloud ai pipeline-jobs` command; `pipeline/runstate.py` (SDK) shows a run's tasks, durations and error.
+- Never commit the compiled `pipeline/pipeline.json`: it sits under `pipeline/**`, so a docs push that happened to
+  include it triggered a CI release run.
 - The prebuilt sklearn prediction container calls `predict()`, which returns hard classes for a classifier. Training a
   gradient-boosting **regressor** on the 0/1 label gives a score in [0,1] with the same container and no custom
   prediction routine.
