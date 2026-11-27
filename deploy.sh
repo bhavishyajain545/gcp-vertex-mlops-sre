@@ -19,8 +19,8 @@ run_pipeline() {  # TAG EXTRA_ARGS...
 }
 
 case "$MODE" in
-  release) run_pipeline "${2:-rel-$(date -u +%m%d%H%M)}"; exit $? ;;
-  bad)     run_pipeline "${2:-bad-$(date -u +%m%d%H%M)}" --sabotage; exit $? ;;
+  release) run_pipeline "${2:-rel-$(date -u +%m%d%H%M)}" "${@:3}"; exit $? ;;              # extra args go to submit.py (--no-wait, --no-promote, --canary N)
+  bad)     run_pipeline "${2:-bad-$(date -u +%m%d%H%M)}" --sabotage "${@:3}"; exit $? ;;
   drift-image)
     TAG="${2:-v$(date -u +%m%d%H%M)}"
     gcloud builds submit --project "$PROJECT_ID" --region "$REGION" --config cloudbuild.yaml --substitutions="_TAG=${TAG},_REGION=${REGION}" . --quiet
