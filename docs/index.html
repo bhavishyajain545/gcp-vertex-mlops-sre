@@ -151,18 +151,18 @@
 <section id="results"><div class="wrap">
   <h2>Results from the recorded run</h2>
   <div class="kpis">
-    <div class="kpi"><b>AUC_PR_KPI</b><span>champion AUC-PR on held-out data</span></div>
-    <div class="kpi"><b>BAD_AUC_KPI</b><span>sabotaged model's AUC-PR: refused by the gate</span></div>
-    <div class="kpi"><b>PSI_KPI</b><span>PSI max under skewed traffic (threshold 0.25)</span></div>
-    <div class="kpi"><b>ROLLBACK_KPI</b><span>challenger → champion traffic after the drift job</span></div>
+    <div class="kpi"><b>0.888</b><span>champion AUC-PR on held-out data (ROC-AUC 0.969, recall@P90 0.835)</span></div>
+    <div class="kpi"><b>0.848</b><span>sabotaged model's AUC-PR: refused by the gate (regresses the champion)</span></div>
+    <div class="kpi"><b>3.7</b><span>PSI max under skewed traffic (3.63 validation, 3.72 recorded; threshold 0.25)</span></div>
+    <div class="kpi"><b>10/90 → 0/100</b><span>challenger/champion traffic after the drift job</span></div>
   </div>
   <div class="tbl"><table>
     <tr><th>Measurement</th><th>Value</th><th>Notes</th></tr>
-    <tr><td>Champion v1</td><td>V1_ROW</td><td>extract → train → evaluate → gate (no champion yet: floor only) → register → deploy 100%</td></tr>
-    <tr><td>Release v2 (canary)</td><td>V2_ROW</td><td>gate against v1, canary 10% beside v1, smoke through the endpoint, promote</td></tr>
-    <tr><td>Bad model</td><td>BAD_ROW</td><td>labels shuffled, V14/V17/V12 zeroed; the gate's reason string is the run's error</td></tr>
-    <tr><td>Drift drill</td><td>DRIFT_ROW</td><td>PSI per feature over the last hour of logged requests; rollback executed by the job</td></tr>
-    <tr><td>Prediction latency</td><td>LAT_ROW</td><td>through the predict API from India; model latency on the endpoint is a fraction of that</td></tr>
+    <tr><td>Champion v1 (keyless CI run)</td><td>AUC-PR 0.8884 · ROC-AUC 0.9693 · recall@P90 0.835 on 14 577 held-out rows (103 frauds); run 20 min, of which the endpoint deploy 13.5 min</td><td>extract → train → evaluate → gate (no champion yet: floor only) → register → deploy 100%</td></tr>
+    <tr><td>Release v2 (canary)</td><td>gate passed against v1; deployed at 10% beside v1, smoke through the endpoint, promoted to 100%, v1 undeployed; run 13 min</td><td>gate against v1, canary 10% beside v1, smoke through the endpoint, promote</td></tr>
+    <tr><td>Bad model</td><td>AUC-PR 0.848 (ROC-AUC 0.941): <code>GATE FAILED: auc_pr 0.8480 regresses champion 0.8884 by more than 0.01</code>; register and deploy NOT_TRIGGERED</td><td>labels shuffled, V14/V17/V12 zeroed; the gate's reason string is the run's error</td></tr>
+    <tr><td>Drift drill</td><td>325 logged requests in the window; PSI Amount 3.63, V4 3.63, V2 2.86, V3 1.10, V1 0.97 (recorded run: 331 requests, PSI max 3.72) → DRIFTED → <code>ROLLED BACK</code>: traffic 10/90 → champion 100%; the PSI alert fired</td><td>PSI per feature over the last hour of logged requests; rollback executed by the job</td></tr>
+    <tr><td>Prediction latency</td><td>~2.0 s end to end for a 6-row request from India through the REST API (token + TLS + two oceans); model latency on the endpoint tens of ms</td><td>through the predict API from India; model latency on the endpoint is a fraction of that</td></tr>
   </table></div>
 </div></section>
 

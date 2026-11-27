@@ -1,0 +1,159 @@
+1
+00:00:00,300 --> 00:00:03,949
+This project treats a machine-learning model like a release.
+
+2
+00:00:03,949 --> 00:00:21,584
+A fraud detector trained on the public credit-card data set: a Vertex AI pipeline extracts from BigQuery, trains, evaluates, and then an objective gate decides whether the candidate may exist at all; it must clear an absolute floor on A U C P R and it must not regress the current champion.
+
+3
+00:00:21,584 --> 00:00:33,320
+If it passes, it becomes a version in the Model Registry and goes out as a canary: ten percent of one endpoint's traffic next to the champion, a smoke test through the endpoint, then promotion.
+
+4
+00:00:33,320 --> 00:00:36,178
+After the release the model keeps being judged.
+
+5
+00:00:36,178 --> 00:00:50,529
+Every prediction request is logged to BigQuery; a scheduled job computes the population stability index of live traffic against the champion's training baseline and rolls traffic back to the champion on its own when a challenger drifts.
+
+6
+00:00:50,529 --> 00:00:53,570
+Prediction SLOs sit on the endpoint's own metrics.
+
+7
+00:00:53,570 --> 00:00:57,948
+Everything is Terraform and the pipeline is submitted keylessly from CI.
+
+8
+00:00:59,358 --> 00:01:01,339
+The pipeline in the Vertex console.
+
+9
+00:01:01,339 --> 00:01:08,923
+Six components, each a small Python container: extract, train, evaluate, the quality gate, register, and canary deploy with promotion.
+
+10
+00:01:08,923 --> 00:01:24,033
+This run is a healthy release: the gate compared the candidate against the champion and let it through, the new version was deployed at ten percent beside the old one, smoke-tested through the endpoint, promoted to one hundred percent, and the old version undeployed.
+
+11
+00:01:24,033 --> 00:01:27,654
+Each step's inputs, outputs and metrics are recorded as lineage.
+
+12
+00:01:29,772 --> 00:01:38,604
+Live predictions through the endpoint: real rows from the public set, including fraud rows, scored by the serving version with the truth label next to each score.
+
+13
+00:01:38,604 --> 00:01:47,436
+The response names the deployed model and the model version, so every prediction is attributable to a registry entry, and every request lands in the BigQuery log.
+
+14
+00:01:49,051 --> 00:01:51,182
+The same run from the command line.
+
+15
+00:01:51,182 --> 00:01:56,419
+The gate's verdict is explicit: the candidate's A U C P R, the champion's, and a pass.
+
+16
+00:01:56,419 --> 00:02:06,224
+The promote step then writes champion dot json, which the next gate will read, and the baseline of feature distributions that the drift job will compare against.
+
+17
+00:02:06,224 --> 00:02:11,035
+Nothing in this path is a human clicking approve; the numbers are the approval.
+
+18
+00:02:12,639 --> 00:02:21,205
+The Model Registry holds every version under one parent model, with the evaluation metrics as labels and the aliases champion and challenger.
+
+19
+00:02:21,205 --> 00:02:28,556
+The endpoint page shows what is actually serving: one endpoint, the deployed version, its traffic share and its replicas.
+
+20
+00:02:28,556 --> 00:02:32,930
+A version in the registry is an artifact; a deployed model is a release.
+
+21
+00:02:32,930 --> 00:02:34,935
+Keeping those apart is the point.
+
+22
+00:02:37,043 --> 00:02:38,364
+The bad-model drill.
+
+23
+00:02:38,364 --> 00:02:46,618
+I submit the same pipeline with sabotage switched on: a third of the labels shuffled and the three strongest features zeroed.
+
+24
+00:02:46,618 --> 00:02:58,505
+Training still succeeds, evaluation still produces numbers, and the gate refuses it with the reason spelled out: the A U C P R collapsed below the floor and far below the champion.
+
+25
+00:02:58,505 --> 00:03:03,458
+The run is red, the registry has no new version, the endpoint is untouched.
+
+26
+00:03:03,458 --> 00:03:08,939
+That is a worse model that never reached production, caught by a rule, not by luck.
+
+27
+00:03:10,542 --> 00:03:11,411
+The drift drill.
+
+28
+00:03:11,411 --> 00:03:13,963
+A challenger is serving ten percent of traffic.
+
+29
+00:03:13,963 --> 00:03:23,849
+I send three hundred requests whose feature distribution is nothing like the training data, amounts forty times higher, the first four components shifted, and then run the drift job.
+
+30
+00:03:23,849 --> 00:03:33,300
+It reads the last hour of logged requests, bins them with the champion's baseline, and the population stability index jumps far above the threshold on exactly those features.
+
+31
+00:03:33,300 --> 00:03:40,470
+Because a challenger was serving, the job moves one hundred percent of traffic back to the champion and the alert fires for a human.
+
+32
+00:03:42,574 --> 00:03:44,950
+Observability for a model, the SRE way.
+
+33
+00:03:44,950 --> 00:03:53,601
+The dashboard shows predictions and errors per deployed model, p ninety-five model latency, replicas, and the PSI series the drift job writes.
+
+34
+00:03:53,601 --> 00:04:04,629
+Two SLOs on the endpoint's own metrics: ninety-nine point five percent of predictions succeed and ninety-five percent finish under three hundred milliseconds, with burn-rate alerts.
+
+35
+00:04:04,629 --> 00:04:08,710
+A model that is accurate but slow or erroring is still an incident.
+
+36
+00:04:10,597 --> 00:04:19,631
+Delivery is keyless: a push to the pipeline folder compiles the definition and submits a release run as the pipeline service account through Workload Identity Federation.
+
+37
+00:04:19,631 --> 00:04:26,965
+Run workflow with sabotage set to true ships the bad model on purpose, so the gate can be exercised from the same place as a real release.
+
+38
+00:04:27,901 --> 00:04:44,715
+Everything shown is in the repository: the pipeline with its six components and the gate, the drift job with PSI and the rollback, Terraform for the endpoint, logging, SLOs, alerts, dashboard, identities and federation, the drills and the keyless workflow.
+
+39
+00:04:44,715 --> 00:04:50,036
+The idle cost is the endpoint's replicas, and the teardown script removes it all.
+
+40
+00:04:50,036 --> 00:04:51,349
+Thanks for watching.

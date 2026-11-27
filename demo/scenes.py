@@ -185,8 +185,7 @@ async def main() -> None:
     runs: dict = {}
 
     def submit(kind: str):
-        extra = "--sabotage" if kind == "bad" else "--no-promote"
-        out = wsl(f"./deploy.sh {'bad' if kind == 'bad' else 'release'} demo{stamp}-{kind} --no-wait 2>&1 | tail -3", timeout=600)
+        out = wsl(f"./deploy.sh {'bad' if kind == 'bad' else 'release'} demo{stamp}-{kind} --no-wait {'' if kind == 'bad' else '--no-promote'} 2>&1 | tail -3", timeout=600)
         m = re.search(r"run:\s+(\S+)", out)
         runs[kind] = {"log": out, "name": m.group(1) if m else ""}
     # the healthy release first (it must be judged against the champion while the bad run also judges against v1)

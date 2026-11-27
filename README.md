@@ -45,6 +45,16 @@ skewed traffic that triggers the rollback. Terraform for everything; keyless CI 
 | Drift → rollback | `./deploy.sh release --no-promote` (challenger at 10%), then `drills/drift.sh` | 300 skewed requests; PSI max well above 0.25 on Amount/V1–V4; `ROLLED BACK` with the champion at 100%; the PSI alert fires |
 | Predictions | `drills/predict.sh 5` | live scores with truth labels and the serving model version/latency |
 
+## Measured (validation and recorded runs, 2026-11-27)
+
+| | |
+|---|---|
+| Champion | AUC-PR **0.888**, ROC-AUC 0.969, recall@P90 0.835 on 14 577 held-out rows (103 frauds) |
+| Bad model | AUC-PR 0.848 → `GATE FAILED: auc_pr 0.8480 regresses champion 0.8884 by more than 0.01`; nothing registered or deployed |
+| Canary release | gate passed, 10% beside the champion, smoke through the endpoint, promoted, old version undeployed (13 min end to end) |
+| Drift drill | 300 skewed requests → PSI max **3.63** in validation, **3.72** in the recorded run (Amount, V4, V2…) → `ROLLED BACK`: challenger 10% → 0%, champion 100% |
+| Pipeline run | ~13–20 min, dominated by the endpoint deploy step (~6–13 min); the gate itself takes ~1 min |
+
 ## What is where
 
 ```

@@ -1,0 +1,52 @@
+[
+  {
+    "title": "Architecture",
+    "start": 0.3,
+    "end": 58.76
+  },
+  {
+    "title": "Pipeline",
+    "start": 59.36,
+    "end": 89.17
+  },
+  {
+    "title": "Predictions",
+    "start": 89.77,
+    "end": 108.45
+  },
+  {
+    "title": "Release",
+    "start": 109.05,
+    "end": 132.04
+  },
+  {
+    "title": "Registry and endpoint",
+    "start": 132.64,
+    "end": 156.44
+  },
+  {
+    "title": "Bad model drill",
+    "start": 157.04,
+    "end": 189.94
+  },
+  {
+    "title": "Drift drill",
+    "start": 190.54,
+    "end": 221.97
+  },
+  {
+    "title": "Dashboard and SLOs",
+    "start": 222.57,
+    "end": 250.22
+  },
+  {
+    "title": "Keyless CI",
+    "start": 250.6,
+    "end": 267.3
+  },
+  {
+    "title": "Wrap-up",
+    "start": 267.9,
+    "end": 292.86
+  }
+]
