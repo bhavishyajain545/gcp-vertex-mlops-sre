@@ -1,0 +1,62 @@
+# Every push that touches the pipeline submits a release run on Vertex AI Pipelines, keylessly (GitHub OIDC -> WIF).
+# The pipeline is the release process: extract -> train -> evaluate -> gate -> register -> canary -> promote.
+# "Run workflow" with sabotage=true ships a deliberately bad model so the gate can be watched failing.
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths: ["pipeline/**", ".github/workflows/release.yml"]
+  workflow_dispatch:
+    inputs:
+      sabotage:
+        description: "train a deliberately bad model (the gate must fail it)"
+        default: "false"
+      wait:
+        description: "wait for the run to finish (fail the job if the pipeline fails)"
+        default: "true"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: bj-vertex-mlops
+  REGION: us-central1
+  BUCKET: bj-vertex-mlops-mlops
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q -r pipeline/requirements.txt && python pipeline/pipeline.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-spec
+          path: pipeline.json
+
+  release:
+    needs: compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q -r pipeline/requirements.txt
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: sa-github-ci@bj-vertex-mlops.iam.gserviceaccount.com
+      - name: Submit the release pipeline
+        run: |
+          ARGS="--tag ci-${GITHUB_SHA::7}"
+          [ "${{ github.event.inputs.sabotage || 'false' }}" = "true" ] && ARGS="$ARGS --sabotage"
+          [ "${{ github.event.inputs.wait || 'true' }}" = "false" ] && ARGS="$ARGS --no-wait"
+          python pipeline/submit.py --project "$PROJECT_ID" --region "$REGION" --bucket "$BUCKET" \
+            --service-account "sa-pipeline@${PROJECT_ID}.iam.gserviceaccount.com" $ARGS

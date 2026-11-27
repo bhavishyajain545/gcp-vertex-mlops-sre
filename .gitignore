@@ -1,0 +1,8 @@
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+*.log
+demo/_video/
+demo/tts/
+__pycache__/

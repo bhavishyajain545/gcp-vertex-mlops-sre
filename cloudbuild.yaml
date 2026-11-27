@@ -1,0 +1,13 @@
+# Cloud Build: build + push the drift-check image (deploy.sh; CI does the same keylessly).
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/apps/drift-check:${_TAG}", "drift"]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/apps/drift-check:${_TAG}"]
+images: ["${_REGION}-docker.pkg.dev/${PROJECT_ID}/apps/drift-check:${_TAG}"]
+substitutions:
+  _TAG: v1
+  _REGION: us-central1
+options:
+  logging: CLOUD_LOGGING_ONLY
+serviceAccount: projects/${PROJECT_ID}/serviceAccounts/sa-build@${PROJECT_ID}.iam.gserviceaccount.com
